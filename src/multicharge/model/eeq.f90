@@ -180,6 +180,7 @@ subroutine get_xvec_derivs(self, mol, cache, dxdr, dxdL)
 end subroutine get_xvec_derivs
 
 subroutine get_coulomb_matrix(self, mol, cache, amat)
+   use omp_lib
    class(eeq_model), intent(in) :: self
    type(structure_type), intent(in) :: mol
    type(cache_container), intent(inout) :: cache
@@ -187,13 +188,91 @@ subroutine get_coulomb_matrix(self, mol, cache, amat)
 
    type(eeq_cache), pointer :: ptr
 
+   real(wp) :: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12
+
+   !DEBUG
+   real(wp), allocatable :: amat01(:,:)
+   real(wp), allocatable :: amat02(:,:)
+   real(wp), allocatable :: amat03(:,:)
+   real(wp), allocatable :: amat04(:,:)
+   real(wp), allocatable :: amat05(:,:)
+   real(wp), allocatable :: amat06(:,:)
+   real(wp), allocatable :: amat07(:,:)
+   real(wp), allocatable :: amat08(:,:)
+   real(wp), allocatable :: amat09(:,:)
+   real(wp), allocatable :: amat10(:,:)
+   real(wp), allocatable :: amat11(:,:)
+
+   allocate(amat01, source=amat)
+   allocate(amat02, source=amat)
+   allocate(amat03, source=amat)
+   allocate(amat04, source=amat)
+   allocate(amat05, source=amat)
+   allocate(amat06, source=amat)
+   allocate(amat07, source=amat)
+   allocate(amat08, source=amat)
+   allocate(amat09, source=amat)
+   allocate(amat10, source=amat)
+   allocate(amat11, source=amat)
+   !DEBUG
+
    call view(cache, ptr)
 
    if (any(mol%periodic)) then
       call get_amat_3d(self, mol, ptr%wsc, ptr%alpha, amat)
    else
+      t0 = omp_get_wtime()
       call get_amat_0d(self, mol, amat)
+      t1 = omp_get_wtime()
+      call get_amat_0ds(self, mol, amat01)
+      t2 = omp_get_wtime()
+      call get_amat_0d_1(self, mol, amat02)
+      t3 = omp_get_wtime()
+      call get_amat_0d_1a(self, mol, amat03)
+      t4 = omp_get_wtime()
+      call get_amat_0d_1c(self, mol, amat04)
+      t5 = omp_get_wtime()
+      call get_amat_0d_1d(self, mol, amat05)
+      t6 = omp_get_wtime()
+      call get_amat_0d_2a(self, mol, amat06)
+      t7 = omp_get_wtime()
+      call get_amat_0d_3a(self, mol, amat07)
+      t8 = omp_get_wtime()
+      call get_amat_0d_3b(self, mol, amat08)
+      t9 = omp_get_wtime()
+      call get_amat_0d_4a(self, mol, amat09)
+      t10 = omp_get_wtime()
+      call get_amat_0d_4c(self, mol, amat10)
+      t11 = omp_get_wtime()
+      call get_amat_0d_4d(self, mol, amat11)
+      t12 = omp_get_wtime()
+      write(*,*)"timings (s) resolution: ",omp_get_wtick()
+      write(*,'("get_amat_0d   : ",f12.6,"  ",d12.6)')t1-t0,0.0d0
+      write(*,'("get_amat_0ds  : ",f12.6,"  ",d12.6)')t2-t1,norm2(amat01-amat)
+      write(*,'("get_amat_0d_1 : ",f12.6,"  ",d12.6)')t3-t2,norm2(amat02-amat)
+      write(*,'("get_amat_0d_1a: ",f12.6,"  ",d12.6)')t4-t3,norm2(amat03-amat)
+      write(*,'("get_amat_0d_1c: ",f12.6,"  ",d12.6)')t5-t4,norm2(amat04-amat)
+      write(*,'("get_amat_0d_1d: ",f12.6,"  ",d12.6)')t6-t5,norm2(amat05-amat)
+      write(*,'("get_amat_0d_2a: ",f12.6,"  ",d12.6)')t7-t6,norm2(amat06-amat)
+      write(*,'("get_amat_0d_3a: ",f12.6,"  ",d12.6)')t8-t7,norm2(amat07-amat)
+      write(*,'("get_amat_0d_3b: ",f12.6,"  ",d12.6)')t9-t8,norm2(amat08-amat)
+      write(*,'("get_amat_0d_4a: ",f12.6,"  ",d12.6)')t10-t9,norm2(amat09-amat)
+      write(*,'("get_amat_0d_4c: ",f12.6,"  ",d12.6)')t11-t10,norm2(amat10-amat)
+      write(*,'("get_amat_0d_4d: ",f12.6,"  ",d12.6)')t12-t11,norm2(amat11-amat)
+      !write(*,*)"get_amat_0d_4b: ",t10-t9
    end if
+   !DEBUG
+   deallocate(amat01)
+   deallocate(amat02)
+   deallocate(amat03)
+   deallocate(amat04)
+   deallocate(amat05)
+   deallocate(amat06)
+   deallocate(amat07)
+   deallocate(amat08)
+   deallocate(amat09)
+   deallocate(amat10)
+   !DEBUG
 end subroutine get_coulomb_matrix
 
 subroutine get_amat_0d(self, mol, amat)
@@ -240,6 +319,766 @@ subroutine get_amat_0d(self, mol, amat)
    amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
 
 end subroutine get_amat_0d
+
+subroutine get_amat_0ds(self, mol, amat)
+   !
+   ! Same as get_amat_0d except that we use static scheduling
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   ! Thread-private array for reduction
+   real(wp), allocatable :: amat_local(:, :)
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp, amat_local)
+   allocate(amat_local, source=amat)
+   !$omp do schedule(static)
+   do iat = 1, mol%nat
+      izp = mol%id(iat)
+      do jat = 1, iat - 1
+         jzp = mol%id(jat)
+         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+         amat_local(jat, iat) = amat_local(jat, iat) + tmp
+         amat_local(iat, jat) = amat_local(iat, jat) + tmp
+      end do
+      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+      amat_local(iat, iat) = amat_local(iat, iat) + tmp
+   end do
+   !$omp end do
+   !$omp critical (get_amat_0d_)
+   amat(:, :) = amat(:, :) + amat_local(:, :)
+   !$omp end critical (get_amat_0d_)
+   deallocate(amat_local)
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0ds
+
+subroutine get_amat_0d_1(self, mol, amat)
+   !
+   ! Same as get_amat_0d except that we use 1 shared 3D buffer with a
+   ! separate matrix for each thread. Instead of using critical regions
+   ! to accumulate the results we use 3 loops, the outer 2 of which we
+   ! parallelise with OpenMP.
+   !
+   use omp_lib
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   ! Thread-private array for reduction
+   real(wp), allocatable :: amat_threads(:, :, :)
+   integer :: nsize(3)
+   integer :: idth
+
+   amat(:, :) = 0.0_wp
+
+   nsize(1:2) = shape(amat)
+   nsize(3) = omp_get_max_threads()
+   allocate(amat_threads(nsize(1),nsize(2),nsize(3)))
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self, amat_threads) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp, idth)
+   !$omp do schedule(runtime)
+   do iat = 1, mol%nat
+      idth = omp_get_thread_num()+1
+      izp = mol%id(iat)
+      do jat = 1, iat - 1
+         jzp = mol%id(jat)
+         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+         amat_threads(jat, iat, idth) = amat_threads(jat, iat, idth) + tmp
+         amat_threads(iat, jat, idth) = amat_threads(iat, jat, idth) + tmp
+      end do
+      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+      amat_threads(iat, iat, idth) = amat_threads(iat, iat, idth) + tmp
+   end do
+   !$omp end do
+   !$omp end parallel
+   do idth = 1, omp_get_max_threads()
+     !$omp parallel default(none) &
+     !$omp shared(amat, amat_threads, idth, mol) &
+     !$omp private(iat, jat)
+     !$omp do collapse(2) schedule(static)
+     do iat = 1, mol%nat
+       do jat = 1, mol%nat
+         amat(jat, iat) = amat(jat, iat) + amat_threads(jat, iat, idth)
+       enddo
+     enddo
+     !$omp end do
+     !$omp end parallel
+   enddo
+   deallocate(amat_threads)
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_1
+
+subroutine get_amat_0d_1a(self, mol, amat)
+   !
+   ! Same as get_amat_0d except that we eliminate the buffers for
+   ! partial results altogether.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do schedule(runtime)
+   do iat = 1, mol%nat
+      izp = mol%id(iat)
+      do jat = 1, iat - 1
+         jzp = mol%id(jat)
+         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+         amat(jat, iat) = amat(jat, iat) + tmp
+         amat(iat, jat) = amat(iat, jat) + tmp
+      end do
+      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+      amat(iat, iat) = amat(iat, iat) + tmp
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_1a
+
+! OpenMP cannot collapse two loops when the loop limit of the second
+! depends on the counter value of the first.
+!
+!subroutine get_amat_0d_1b(self, mol, amat)
+!   ! Here we eliminate the intermediate matrix amat_local altogether.
+!   ! This approach might not work if calculating the contributions
+!   ! to the matrix involves a lot of parallelizable work, but it
+!   ! this case it is easy.
+!   !
+!   ! Building on get_amat_0d_1a we now collapse and parallelize
+!   ! over the iat and jat loop.
+!   class(eeq_model), intent(in) :: self
+!   type(structure_type), intent(in) :: mol
+!   real(wp), intent(out) :: amat(:, :)
+!
+!   integer :: iat, jat, izp, jzp
+!   real(wp) :: vec(3), r2, gam, tmp
+!
+!   amat(:, :) = 0.0_wp
+!
+!   !$omp parallel default(none) &
+!   !$omp shared(amat, mol, self) &
+!   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+!   !$omp do collapse(2) schedule(runtime)
+!   do iat = 1, mol%nat
+!      do jat = 1, iat
+!         izp = mol%id(iat)
+!         if (iat.ne.jat) then
+!           jzp = mol%id(jat)
+!           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+!           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+!           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+!           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+!           amat(jat, iat) = amat(jat, iat) + tmp
+!           amat(iat, jat) = amat(iat, jat) + tmp
+!         else
+!           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+!           amat(iat, iat) = amat(iat, iat) + tmp
+!         endif
+!      end do
+!   end do
+!   !$omp end do
+!   !$omp end parallel
+!
+!   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+!   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+!   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+!
+!end subroutine get_amat_0d_1b
+
+subroutine get_amat_0d_1c(self, mol, amat)
+   !
+   ! Same as get_amat_0d_1 except that we replace the 2 loops over the
+   ! upper triangle with 1 loop as demonstrated in
+   ! `multicharge/snippets/prog_single.f90`.
+   ! In addition we use static scheduling.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: izp, jzp
+   integer(kind=8) :: iat, jat, idx, ntop
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   ntop = mol%nat*(mol%nat+1)/2
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self, ntop) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp, idx)
+   !$omp do schedule(static)
+   do idx = 1, ntop
+         iat = int((1.0d0 + sqrt(1.0d0 + 8.0d0 * real(idx-1, 8))) / 2.0d0)
+         jat = idx - iat*(iat-1)/2
+         izp = mol%id(iat)
+         if (iat.ne.jat) then
+           jzp = mol%id(jat)
+           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+           amat(jat, iat) = amat(jat, iat) + tmp
+           amat(iat, jat) = amat(iat, jat) + tmp
+         else
+           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+           amat(iat, iat) = amat(iat, iat) + tmp
+         endif
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_1c
+
+subroutine get_amat_0d_1d(self, mol, amat)
+   !
+   ! Same as get_amat_0d_1 except that we replace the 2 loops over the
+   ! upper triangle with 2 loops running over a rectangle as demonstrated
+   ! in `multicharge/snippets/prog_mapping.f90`.
+   ! In addition we collapse the 2 loops and use static scheduling.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: jcol, irow
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do collapse(2) schedule(static)
+   do jcol = 1, mol%nat
+      do irow = 1, (mol%nat+1)/2
+         if (irow .ge. jcol) then
+           jat = irow
+           iat = jcol
+           izp = mol%id(iat)
+           if (iat.ne.jat) then
+             jzp = mol%id(jat)
+             vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+             gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+             tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+             amat(jat, iat) = amat(jat, iat) + tmp
+             amat(iat, jat) = amat(iat, jat) + tmp
+           else
+             tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+             amat(iat, iat) = amat(iat, iat) + tmp
+           endif
+         endif
+         if (irow .le. mol%nat/2 .and. irow .le. jcol) then
+           jat = mol%nat - irow + 1
+           iat = mol%nat - jcol + 1
+           izp = mol%id(iat)
+           if (iat.ne.jat) then
+             jzp = mol%id(jat)
+             vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+             gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+             tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+             amat(jat, iat) = amat(jat, iat) + tmp
+             amat(iat, jat) = amat(iat, jat) + tmp
+           else
+             tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+             amat(iat, iat) = amat(iat, iat) + tmp
+           endif
+         endif
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_1d
+
+subroutine get_amat_0d_2a(self, mol, amat)
+   !
+   ! Same as get_amat_0d_1a except that we run the outer loop over the
+   ! upper triangle backwards, thus ensuring the largest tasks are
+   ! scheduled first to improve load balancing.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do schedule(runtime)
+   do iat = mol%nat, 1, -1
+      izp = mol%id(iat)
+      do jat = 1, iat - 1
+         jzp = mol%id(jat)
+         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+         amat(jat, iat) = amat(jat, iat) + tmp
+         amat(iat, jat) = amat(iat, jat) + tmp
+      end do
+      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+      amat(iat, iat) = amat(iat, iat) + tmp
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_2a
+
+! This doesn't work, see the comments at get_amat_0d_1b for the
+! reasons "why".
+!
+!subroutine get_amat_0d_2b(self, mol, amat)
+!   ! Building on get_amat_0d_1a we improve load balancing
+!   ! by running the loop over which we parallelise backwards.
+!   ! This means that the biggest tasks are started first,
+!   ! and the smallest last. In combination with dynamic
+!   ! load balancing this should improve the time to solution
+!   ! as the load imbalance is proportional to the size of the
+!   ! last tasks.
+!   class(eeq_model), intent(in) :: self
+!   type(structure_type), intent(in) :: mol
+!   real(wp), intent(out) :: amat(:, :)
+!
+!   integer :: iat, jat, izp, jzp
+!   real(wp) :: vec(3), r2, gam, tmp
+!
+!   amat(:, :) = 0.0_wp
+!
+!   !$omp parallel default(none) &
+!   !$omp shared(amat, mol, self) &
+!   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+!   !$omp do collapse(2) schedule(runtime)
+!   do iat = mol%nat, 1, -1
+!      do jat = 1, iat
+!         izp = mol%id(iat)
+!         if (iat.ne.jat) then
+!           jzp = mol%id(jat)
+!           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+!           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+!           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+!           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+!           amat(jat, iat) = amat(jat, iat) + tmp
+!           amat(iat, jat) = amat(iat, jat) + tmp
+!         else
+!           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+!           amat(iat, iat) = amat(iat, iat) + tmp
+!         endif
+!      end do
+!   end do
+!   !$omp end do
+!   !$omp end parallel
+!
+!   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+!   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+!   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+!
+!end subroutine get_amat_0d_2b
+
+subroutine get_amat_0d_3a(self, mol, amat)
+   !
+   ! Same as get_amat_0d_1a except that we calculate the entire
+   ! matrix explicitly. This avoids the transposed matrix accesses
+   ! at the cost of duplicating the compute.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do schedule(runtime)
+   do iat = 1, mol%nat
+      izp = mol%id(iat)
+      do jat = 1, mol%nat
+         if (iat.ne.jat) then
+           jzp = mol%id(jat)
+           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+           amat(jat, iat) = amat(jat, iat) + tmp
+         else
+           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+           amat(iat, iat) = amat(iat, iat) + tmp
+         endif
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_3a
+
+subroutine get_amat_0d_3b(self, mol, amat)
+   !
+   ! Same as get_amat_0d_3a except that we collapse the 2 loops
+   ! and use static scheduling.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do collapse(2) schedule(static)
+   do iat = 1, mol%nat
+      do jat = 1, mol%nat
+         izp = mol%id(iat)
+         if (iat.ne.jat) then
+           jzp = mol%id(jat)
+           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+           amat(jat, iat) = amat(jat, iat) + tmp
+         else
+           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+           amat(iat, iat) = amat(iat, iat) + tmp
+         endif
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_3b
+
+subroutine get_amat_0d_4a(self, mol, amat)
+   !
+   ! Same as get_amat_0d_2a except that we first calculate
+   ! just the upper triangle. Afterwards we populate the
+   ! lower triangle by copying the data.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do schedule(runtime)
+   do iat = mol%nat, 1, -1
+      izp = mol%id(iat)
+      do jat = 1, iat - 1
+         jzp = mol%id(jat)
+         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+         amat(jat, iat) = amat(jat, iat) + tmp
+      end do
+      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+      amat(iat, iat) = amat(iat, iat) + tmp
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, jat)
+   !$omp do schedule(runtime)
+   do iat = mol%nat, 1, -1
+      do jat = 1, iat - 1
+         amat(iat, jat) = amat(jat, iat)
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_4a
+
+! as feared OpenMP currently cannot collapse loops when the
+! loop limit of one loop depends on the iteration number of
+! the other (not even for the special case of a triangle).
+!subroutine get_amat_0d_4b(self, mol, amat)
+!   ! Building on get_amat_0d_1a we improve load balancing
+!   ! by running the loop over which we parallelise backwards.
+!   ! This means that the biggest tasks are started first,
+!   ! and the smallest last. In combination with dynamic
+!   ! load balancing this should improve the time to solution
+!   ! as the load imbalance is proportional to the size of the
+!   ! last tasks.
+!   !
+!   ! In addition we just calculate the triangle first and then
+!   ! copy the results in a dedicated loop.
+!   class(eeq_model), intent(in) :: self
+!   type(structure_type), intent(in) :: mol
+!   real(wp), intent(out) :: amat(:, :)
+!
+!   integer :: iat, jat, izp, jzp
+!   real(wp) :: vec(3), r2, gam, tmp
+!
+!   amat(:, :) = 0.0_wp
+!
+!   !$omp parallel default(none) &
+!   !$omp shared(amat, mol, self) &
+!   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+!   !$omp do collapse(2) schedule(runtime)
+!   do iat = mol%nat, 1, -1
+!      do jat = 1, iat - 1
+!         izp = mol%id(iat)
+!         jzp = mol%id(jat)
+!         vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+!         r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+!         gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+!         tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+!         amat(jat, iat) = amat(jat, iat) + tmp
+!      end do
+!      tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+!      amat(iat, iat) = amat(iat, iat) + tmp
+!   end do
+!   !$omp end do
+!   !$omp end parallel
+!
+!   !$omp parallel default(none) &
+!   !$omp shared(amat, mol, self) &
+!   !$omp private(iat, jat)
+!   !$omp do collapse(2) schedule(runtime)
+!   do iat = mol%nat, 1, -1
+!      do jat = 1, iat - 1
+!         amat(iat, jat) = amat(jat, iat)
+!      end do
+!   end do
+!   !$omp end do
+!   !$omp end parallel
+!
+!   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+!   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+!   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+!
+!end subroutine get_amat_0d_4b
+
+subroutine get_amat_0d_4c(self, mol, amat)
+   !
+   ! Same as get_amat_0d_4a except that we manually collapse
+   ! the 2 loops over the upper triangle as shown in
+   ! multicharge/snippets/prog_single.f90.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: izp, jzp
+   integer(kind=8) :: iat, jat, ntop, idx
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   ntop = mol%nat*(mol%nat+1)/2
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self, ntop) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp)
+   !$omp do schedule(static)
+   do idx = 1, ntop
+         iat = int((1.0d0 + sqrt(1.0d0 + 8.0d0 * real(idx-1, 8))) / 2.0d0)
+         jat = idx - iat*(iat-1)/2
+         izp = mol%id(iat)
+         jzp = mol%id(jat)
+         if (iat.ne.jat) then
+           vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+           r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+           gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+           tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+           amat(jat, iat) = amat(jat, iat) + tmp
+         else
+           tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+           amat(iat, iat) = amat(iat, iat) + tmp
+         endif
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self, ntop) &
+   !$omp private(iat, jat, idx)
+   !$omp do schedule(static)
+   do idx = 1, ntop
+         iat = int((1.0d0 + sqrt(1.0d0 + 8.0d0 * real(idx-1, 8))) / 2.0d0)
+         jat = idx - iat*(iat-1)/2
+         amat(iat, jat) = amat(jat, iat)
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_4c
+
+subroutine get_amat_0d_4d(self, mol, amat)
+   !
+   ! Same as get_amat_0d_4a except that we loop over
+   ! the rectange that represents the upper half of
+   ! the matrix, as shown in
+   ! multicharge/snippets/prog_mapping.f90.
+   !
+   class(eeq_model), intent(in) :: self
+   type(structure_type), intent(in) :: mol
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp, irow, jcol
+   real(wp) :: vec(3), r2, gam, tmp
+
+   amat(:, :) = 0.0_wp
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, izp, jat, jzp, gam, vec, r2, tmp, irow, jcol)
+   !$omp do collapse(2) schedule(static)
+   do jcol = 1, mol%nat
+      do irow = 1, (mol%nat+1)/2
+         if (irow .ge. jcol) then
+           jat = irow
+           iat = jcol
+           izp = mol%id(iat)
+           jzp = mol%id(jat)
+           if (iat.ne.jat) then
+             vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+             gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+             tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+             amat(jat, iat) = amat(jat, iat) + tmp
+           else
+             tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+             amat(iat, iat) = amat(iat, iat) + tmp
+           endif
+         endif
+         if (irow .le. mol%nat/2 .and. irow .le. jcol) then
+           jat = mol%nat - irow + 1
+           iat = mol%nat - jcol + 1
+           izp = mol%id(iat)
+           jzp = mol%id(jat)
+           if (iat.ne.jat) then
+             vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+             gam = 1.0_wp / (self%rad(izp)**2 + self%rad(jzp)**2)
+             tmp = erf(sqrt(r2 * gam)) / sqrt(r2)
+             amat(jat, iat) = amat(jat, iat) + tmp
+           else
+             tmp = self%eta(izp) + sqrt2pi / self%rad(izp)
+             amat(iat, iat) = amat(iat, iat) + tmp
+           endif
+         endif
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   !$omp parallel default(none) &
+   !$omp shared(amat, mol, self) &
+   !$omp private(iat, jat, jcol, irow)
+   !$omp do collapse(2) schedule(static)
+   do jcol = 1, mol%nat
+      do irow = 1, (mol%nat+1)/2
+         if (irow .ge. jcol) then
+           jat = irow
+           iat = jcol
+           amat(iat, jat) = amat(jat, iat)
+         endif
+         if (irow .le. mol%nat/2 .and. irow .le. jcol) then
+           jat = mol%nat - irow + 1
+           iat = mol%nat - jcol + 1
+           amat(iat, jat) = amat(jat, iat)
+         endif
+      end do
+   end do
+   !$omp end do
+   !$omp end parallel
+
+   amat(mol%nat + 1, 1:mol%nat + 1) = 1.0_wp
+   amat(1:mol%nat + 1, mol%nat + 1) = 1.0_wp
+   amat(mol%nat + 1, mol%nat + 1) = 0.0_wp
+
+end subroutine get_amat_0d_4d
 
 subroutine get_amat_3d(self, mol, wsc, alpha, amat)
    class(eeq_model), intent(in) :: self
