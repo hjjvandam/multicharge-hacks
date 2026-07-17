@@ -27,7 +27,7 @@ prog_triangle_10.out: prog_triangle
 prog_triangle_11.out: prog_triangle
 	./prog_triangle 11 > prog_triangle_11.out
 
-diff.out: prog_triangle_10.out prog_triangle_11.out prog_mapping_10.out prog_mapping_11.ou prog_single_10.out prog_single_11.out
+diff.out: prog_triangle_10.out prog_triangle_11.out prog_mapping_10.out prog_mapping_11.out prog_single_10.out prog_single_11.out
 	diff prog_mapping_10.out prog_triangle_10.out >  diff.out
 	diff prog_single_10.out prog_triangle_10.out  >> diff.out
 	diff prog_mapping_11.out prog_triangle_11.out >> diff.out
