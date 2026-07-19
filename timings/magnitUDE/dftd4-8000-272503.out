@@ -1,0 +1,32 @@
+==========================================
+SLURM_JOB_NAME = dftd4-8000.sh
+SLURM_JOB_USER = cbm518i
+SLURM_JOB_ID = 272503
+SLURM_JOB_NUM_NODES = 1
+SLURM_JOB_NODELIST = node509
+==========================================
+Rational (Becke-Johnson) damping: pbe-D4
+---------------------
+  s6         1.0000
+  s8         0.9595
+  s9         0.0000
+  a1         0.3857
+  a2         4.8069
+ alp        16.0000
+--------------------
+
+ timings (s) resolution:    1.0000000000000001E-009
+get_amat_0d   :     3.943730  0.000000D+00
+get_amat_0ds  :     4.039306  0.000000D+00
+get_amat_0d_1 :     1.042232  0.000000D+00
+get_amat_0d_1a:     0.157232  0.000000D+00
+get_amat_0d_1c:     0.163656  0.000000D+00
+get_amat_0d_1d:     0.166357  0.000000D+00
+get_amat_0d_2a:     0.152053  0.000000D+00
+get_amat_0d_3a:     0.141023  0.000000D+00
+get_amat_0d_3b:     0.176334  0.000000D+00
+get_amat_0d_4a:     0.163273  0.000000D+00
+get_amat_0d_4c:     0.273627  0.000000D+00
+get_amat_0d_4d:     0.260902  0.000000D+00
+Dispersion energy:      -1.0009320955811E+02 Eh
+
