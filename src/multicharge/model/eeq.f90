@@ -372,7 +372,7 @@ subroutine get_amat_0d_1(self, mol, amat)
    !
    ! Same as get_amat_0d except that we use 1 shared 3D buffer with a
    ! separate matrix for each thread. Instead of using critical regions
-   ! to accumulate the results we use 3 loops, the outer 2 of which we
+   ! to accumulate the results we use 3 loops, the inner 2 of which we
    ! parallelise with OpenMP.
    !
    use omp_lib
@@ -529,7 +529,7 @@ end subroutine get_amat_0d_1a
 
 subroutine get_amat_0d_1c(self, mol, amat)
    !
-   ! Same as get_amat_0d_1 except that we replace the 2 loops over the
+   ! Same as get_amat_0d_1a except that we replace the 2 loops over the
    ! upper triangle with 1 loop as demonstrated in
    ! `multicharge/snippets/prog_single.f90`.
    ! In addition we use static scheduling.
@@ -577,7 +577,7 @@ end subroutine get_amat_0d_1c
 
 subroutine get_amat_0d_1d(self, mol, amat)
    !
-   ! Same as get_amat_0d_1 except that we replace the 2 loops over the
+   ! Same as get_amat_0d_1a except that we replace the 2 loops over the
    ! upper triangle with 2 loops running over a rectangle as demonstrated
    ! in `multicharge/snippets/prog_mapping.f90`.
    ! In addition we collapse the 2 loops and use static scheduling.
